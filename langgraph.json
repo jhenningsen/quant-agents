@@ -1,0 +1,6 @@
+{
+  "dependencies": ["yfinance", "pandas", "pandas-ta"],
+  "graphs": {
+    "agent": "./agent.py:graph"
+  }
+}
