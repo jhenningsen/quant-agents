@@ -1,6 +1,6 @@
 {
   "dependencies": ["yfinance", "pandas", "pandas-ta", "hmmlearn"],
   "graphs": {
-    "agent": "./agent.py:graph"
+    "hmm_agent": "./hmm_agent.py:graph"
   }
 }
