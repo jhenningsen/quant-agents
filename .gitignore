@@ -1,1 +1,18 @@
-.env 
+# LangGraph checkpoints and temporary files
+*.pckl
+.langgraph_api/
+
+# Python bytecode (the stuff causing your error)
+__pycache__/
+*.py[cod]
+
+# Environments (where secrets live)
+.env
+.venv/
+env/
+venv/
+
+# Data and OS junk
+.DS_Store
+Thumbs.db
+*.log
