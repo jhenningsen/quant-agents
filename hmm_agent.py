@@ -58,27 +58,45 @@ def classify_regime_hmm(state: State):
 
 def trending_node(state: State):
     results = []
+    # Use standard multipliers for a "LinkedIn-Ready" strategy
+    L = 10
+    M = 2
+
     for ticker, info in state['stock_data'].items():
         if info['regime'] == "TRENDING":
             df = yf.download(ticker, period="1y", progress=False)
-            if df.empty: continue
+            if df.empty or len(df) < L: continue
 
-            st = ta.supertrend(df['High'], df['Low'], df['Close'], length=10, multiplier=2)
+            # 1. Calculate Indicators
+            st = ta.supertrend(df['High'], df['Low'], df['Close'], length=L, multiplier=M)
             stc = ta.stc(df['Close'])
 
-            # --- DEBUG PRINT ---
-            # This will show up in your Terminal/Studio logs
-            if st is not None:
-                print(f">>> {ticker} Columns: {st.columns.tolist()}")
-                print(f">>> {ticker} Price: {df['Close'].iloc[-1]} | STC: {stc.iloc[-1]}")
+            if st is None or stc is None: continue
 
-            # FORCED ADDITION: Let's see if the node is even running
-            results.append({
-                "symbol": ticker,
-                "regime": "DEBUG_CHECK",
-                "signal": "RUNNING",
-                "reason": "Node reached this point"
-            })
+            try:
+                curr_price = df['Close'].iloc[-1]
+                # DYNAMIC COLUMN SELECTION: Fixes the 'NoneType' and 'Skip' errors
+                st_column = f'SUPERT_{L}_{float(M)}'
+
+                if st_column not in st.columns:
+                    print(f"DEBUG: Column {st_column} not found in {st.columns.tolist()}")
+                    continue
+
+                st_floor = st[st_column].iloc[-1]
+                stc_val = stc.iloc[-1]
+
+                # SIGNAL LOGIC
+                # Let's use a standard 'Bullish' STC (> 25)
+                if curr_price > st_floor and stc_val > 25:
+                    results.append({
+                        "symbol": ticker,
+                        "regime": "TRENDING",
+                        "signal": "BUY",
+                        "reason": f"Breakout: Price(${curr_price:.2f}) > Floor(${st_floor:.2f}) & STC({stc_val:.1f}) Bullish"
+                    })
+            except Exception as e:
+                print(f"Error processing {ticker}: {e}")
+
     return {"analysis_results": results}
 
 def sideways_node(state: State):
