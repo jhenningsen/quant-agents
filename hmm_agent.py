@@ -66,7 +66,7 @@ def trending_node(state: State):
             if df.empty or len(df) < 20: continue
 
             # 1. Calculate Indicators (SuperTrend + STC)
-            st = ta.supertrend(df['High'], df['Low'], df['Close'], length=10, multiplier=3)
+            st = ta.supertrend(df['High'], df['Low'], df['Close'], length=10, multiplier=2)
             stc = ta.stc(df['Close'])
 
             # Defensive Check: Ensure indicators didn't fail
@@ -81,7 +81,7 @@ def trending_node(state: State):
                 stc_val = stc.iloc[-1]
 
                 # Your Logic: Price > Floor AND STC cycling up
-                if curr_price > st_floor and stc_val > 25:
+                if curr_price > st_floor and stc_val > 10:
                     results.append({
                         "symbol": ticker,
                         "regime": "TRENDING",
