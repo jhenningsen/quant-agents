@@ -59,15 +59,25 @@ def analyze_stocks(state: State):
             for s_val in sma_range:
                 sma_col = f'SMA_{s_val}'
                 trend_floor = df[sma_col].iloc[-1]
+                prev_floor = df[sma_col].iloc[-2]  # Yesterday's SMA
+                prev_close = df['Close'].iloc[-2]  # Yesterday's Close
 
-                # Check technical trigger
-                above_floor = curr > trend_floor
+                # 1. NEW TRIGGER LOGIC: Must cross FROM below TO above the floor
+                was_below_yesterday = prev_close < prev_floor
+                is_above_today = curr > trend_floor
                 below_ceiling = curr < midpoint_ceiling
 
-                if above_floor and below_ceiling:
+                if was_below_yesterday and is_above_today and below_ceiling:
                     rec = "BUY"
                     hist_df = df.copy()
-                    hist_df['sig'] = (hist_df['Close'] > hist_df[sma_col]) & \
+
+                    # 2. NEW BACKTEST LOGIC: Vectorized crossover check
+                    # Compare each day's close to its SMA, and the previous day's close to its SMA
+                    hist_df['prev_close'] = hist_df['Close'].shift(1)
+                    hist_df['prev_sma'] = hist_df[sma_col].shift(1)
+
+                    hist_df['sig'] = (hist_df['prev_close'] < hist_df['prev_sma']) & \
+                                     (hist_df['Close'] > hist_df[sma_col]) & \
                                      (hist_df['Close'] < bbands[bbm_col])
 
                     # Calculate Multiple Forward Return Windows
