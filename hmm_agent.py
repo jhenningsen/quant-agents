@@ -81,7 +81,7 @@ def trending_node(state: State):
                 stc_val = stc.iloc[-1]
 
                 # Your Logic: Price > Floor AND STC cycling up
-                if curr_price > st_floor and stc_val > 10:
+                if curr_price > st_floor and stc_val > 2:
                     results.append({
                         "symbol": ticker,
                         "regime": "TRENDING",
