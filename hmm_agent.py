@@ -57,39 +57,28 @@ def classify_regime_hmm(state: State):
 # --- 3. Strategy Nodes (Fetch-on-Demand Pattern) ---
 
 def trending_node(state: State):
-    """Restored Momentum Logic with local data fetch to prevent NoneType errors"""
     results = []
     for ticker, info in state['stock_data'].items():
         if info['regime'] == "TRENDING":
-            # Fetch data locally so it isn't 'null' from the state
             df = yf.download(ticker, period="1y", progress=False)
-            if df.empty or len(df) < 20: continue
+            if df.empty: continue
 
-            # 1. Calculate Indicators (SuperTrend + STC)
             st = ta.supertrend(df['High'], df['Low'], df['Close'], length=10, multiplier=2)
             stc = ta.stc(df['Close'])
 
-            # Defensive Check: Ensure indicators didn't fail
-            if st is None or stc is None: continue
+            # --- DEBUG PRINT ---
+            # This will show up in your Terminal/Studio logs
+            if st is not None:
+                print(f">>> {ticker} Columns: {st.columns.tolist()}")
+                print(f">>> {ticker} Price: {df['Close'].iloc[-1]} | STC: {stc.iloc[-1]}")
 
-            try:
-                curr_price = df['Close'].iloc[-1]
-                st_column = 'SUPERT_10_3.0'
-                if st_column not in st.columns: continue
-
-                st_floor = st[st_column].iloc[-1]
-                stc_val = stc.iloc[-1]
-
-                # Your Logic: Price > Floor AND STC cycling up
-                if curr_price > st_floor and stc_val > 2:
-                    results.append({
-                        "symbol": ticker,
-                        "regime": "TRENDING",
-                        "signal": "BUY",
-                        "reason": "Momentum Continuity (ATR Floor + STC)"
-                    })
-            except Exception as e:
-                print(f"Error processing {ticker}: {e}")
+            # FORCED ADDITION: Let's see if the node is even running
+            results.append({
+                "symbol": ticker,
+                "regime": "DEBUG_CHECK",
+                "signal": "RUNNING",
+                "reason": "Node reached this point"
+            })
     return {"analysis_results": results}
 
 def sideways_node(state: State):
