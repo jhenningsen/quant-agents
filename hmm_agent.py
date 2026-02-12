@@ -62,22 +62,38 @@ def trending_node(state: State):
     for ticker, info in state['stock_data'].items():
         if info['regime'] == "TRENDING":
             df = info['df']
-            # Flashy Indicators: SuperTrend and Schaff Trend Cycle
+
+            # 1. Calculate Indicators
             st = ta.supertrend(df['High'], df['Low'], df['Close'], length=10, multiplier=3)
             stc = ta.stc(df['Close'])
 
-            curr_price = df['Close'].iloc[-1]
-            st_floor = st['SUPERT_10_3.0'].iloc[-1]
-            stc_val = stc.iloc[-1]
+            # --- FIX: Defensive Check ---
+            # Check if SuperTrend or STC returned None (NoneType error fix)
+            if st is None or stc is None:
+                print(f"DEBUG: Indicators failed for {ticker}. Skipping.")
+                continue
 
-            # Logic: Price above ATR-floor and STC cycling up
-            if curr_price > st_floor and stc_val > 25:
-                results.append({
-                    "symbol": ticker,
-                    "regime": "TRENDING",
-                    "signal": "BUY",
-                    "reason": "Momentum Continuity (ATR Floor + STC)"
-                })
+            try:
+                curr_price = df['Close'].iloc[-1]
+                # Ensure the specific column exists in the SuperTrend DataFrame
+                st_column = 'SUPERT_10_3.0'
+                if st_column not in st.columns:
+                    continue
+
+                st_floor = st[st_column].iloc[-1]
+                stc_val = stc.iloc[-1]
+
+                if curr_price > st_floor and stc_val > 25:
+                    results.append({
+                        "symbol": ticker,
+                        "regime": "TRENDING",
+                        "signal": "BUY",
+                        "reason": "Momentum Continuity (ATR Floor + STC)"
+                    })
+            except Exception as e:
+                print(f"Error processing signals for {ticker}: {e}")
+                continue
+
     return {"analysis_results": results}
 
 def sideways_node(state: State):
