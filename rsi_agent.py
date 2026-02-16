@@ -7,9 +7,10 @@ from langgraph.graph import StateGraph, END
 
 # --- 1. Configuration ---
 RSI_THRESHOLD = 25
-RSI_LENGTHS = [12, 14, 16, 18, 20, 22, 24, 26]
+RSI_LENGTHS = [10, 12, 14, 16, 18, 22, 26]
 CSV_FILE = "OptionVolume.csv"
 
+# --- 1. State Definition (JSON-Safe) ---
 class AgentState(TypedDict):
     # We make these optional so the graph can start with {}
     signals: Optional[List[dict]]
