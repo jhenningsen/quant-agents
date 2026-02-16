@@ -2,6 +2,7 @@
   "dependencies": ["yfinance", "pandas", "pandas-ta", "hmmlearn"],
   "graphs": {
     "momentum_agent": "./agent.py:graph",
+    "rsi_agent": "./rsi_agent.py:graph",
     "hmm_agent": "./hmm_agent.py:graph"
   }
 }
