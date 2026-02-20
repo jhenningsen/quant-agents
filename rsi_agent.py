@@ -15,7 +15,7 @@ load_dotenv()
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
 # --- 1. Configuration ---
-RSI_THRESHOLD = 25
+RSI_THRESHOLD = 27
 RSI_LENGTHS = [10, 12, 14, 16, 18, 22, 26]
 CSV_FILE = "OptionVolume.csv"
 
@@ -122,9 +122,10 @@ def summarize_node(state: AgentState):
     # Creating a structured text summary
     report = "### 📈 RSI SCANNER SUMMARY\n\n"
     for s in signals:
-        report += f"**{s['symbol']}** (RSI: {s['rsi']:.1f})\n"
-        report += f"- Trend: {s['trend']} | Price: ${s['price']}\n"
-        report += f"- AI Insight: {s['ai_insight']}\n\n"
+        report += f"**{s['symbol']}** (RSI: {s.get('rsi_val', 0):.1f})\n"
+        report += f"- Trend: {s.get('trend', 'N/A')} | Price: ${s.get('price', 0)}\n"
+        # Added .get() for ai_insight to prevent crashes if a specific ticker fails
+        report += f"- AI Insight: {s.get('ai_insight', 'No insight available.')}\n\n"
 
     print(report) # Also print to console
     return {"final_report": report, "status": "Finished"}
@@ -141,4 +142,4 @@ workflow.add_edge("scanner", "researcher")
 workflow.add_edge("researcher", "summarizer")
 workflow.add_edge("summarizer", END)
 
-app = workflow.compile()
+graph = workflow.compile()
