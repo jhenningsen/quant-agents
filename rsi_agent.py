@@ -1,22 +1,37 @@
 import pandas as pd
 import yfinance as yf
 import numpy as np
+import os
+from dotenv import load_dotenv
 from datetime import datetime
 from typing import TypedDict, List, Optional
 from langgraph.graph import StateGraph, END
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# Load the .env file
+load_dotenv()
+
+# LangChain will now automatically find os.environ["GOOGLE_API_KEY"]
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
 # --- 1. Configuration ---
 RSI_THRESHOLD = 25
 RSI_LENGTHS = [10, 12, 14, 16, 18, 22, 26]
 CSV_FILE = "OptionVolume.csv"
 
-# --- 1. State Definition (JSON-Safe) ---
+
+# --- 2. State Definition (JSON-Safe) ---
 class AgentState(TypedDict):
-    # We make these optional so the graph can start with {}
+    # 'signals' will hold the list of stocks that passed the RSI scan
     signals: Optional[List[dict]]
+    # 'final_report' will hold the AI-formatted summary
+    final_report: Optional[str]
     status: Optional[str]
 
-# --- 2. Precision RSI Logic ---
+# Initialize AI
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+
+# --- 3. Precision RSI Logic ---
 def calculate_rsi_wilder(series, period=14):
     """Matches Yahoo Finance Precision (Wilder's Smoothing)"""
     delta = series.diff()
@@ -30,7 +45,7 @@ def calculate_rsi_wilder(series, period=14):
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
 
-# --- 3. The Scanner Node ---
+# --- 4. The Scanner Node ---
 def rsi_scanner_node(state: AgentState):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Full Scanner...")
 
@@ -54,6 +69,10 @@ def rsi_scanner_node(state: AgentState):
 
             current_close = df['Close'].iloc[-1]
 
+            # Optional: Keep SMA 200 just as a data point, not a filter
+            sma_200 = df['Close'].rolling(200).mean().iloc[-1]
+            trend = "Bullish" if current_close > sma_200 else "Bearish"
+
             for length in RSI_LENGTHS:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
                 rsi_today = rsi_series.iloc[-1]
@@ -76,11 +95,50 @@ def rsi_scanner_node(state: AgentState):
         "status": f"Found {len(found_signals)} signals"
     }
 
-# --- 4. Graph Construction ---
-workflow = StateGraph(AgentState)
-workflow.add_node("scanner", rsi_scanner_node)
-workflow.set_entry_point("scanner")
-workflow.add_edge("scanner", END)
+# --- 5. Separate AI Research Node ---
+def research_node(state: AgentState):
+    signals = state.get("signals", [])
+    if not signals:
+        return {"status": "No signals found to research."}
 
-# Export as 'graph'
-graph = workflow.compile()
+    enriched = []
+    for item in signals:
+        ticker = item['symbol']
+        # Call Gemini for the 'AI Element'
+        prompt = f"Analyze {ticker}. It is currently at an RSI of {item['rsi']}. Briefly mention one upcoming catalyst (like earnings) and the historical risk of buying this dip."
+        response = llm.invoke(prompt)
+
+        item['ai_insight'] = response.content
+        enriched.append(item)
+
+    return {"signals": enriched, "status": "Research Complete"}
+
+# --- 6. Summarize Node (The Presentation Layer) ---
+def summarize_node(state: AgentState):
+    signals = state.get("signals", [])
+    if not signals:
+        return {"final_report": "No actionable RSI signals detected today."}
+
+    # Creating a structured text summary
+    report = "### 📈 RSI SCANNER SUMMARY\n\n"
+    for s in signals:
+        report += f"**{s['symbol']}** (RSI: {s['rsi']:.1f})\n"
+        report += f"- Trend: {s['trend']} | Price: ${s['price']}\n"
+        report += f"- AI Insight: {s['ai_insight']}\n\n"
+
+    print(report) # Also print to console
+    return {"final_report": report, "status": "Finished"}
+
+# --- 7. Build the Graph ---
+workflow = StateGraph(AgentState)
+
+workflow.add_node("scanner", rsi_scanner_node)
+workflow.add_node("researcher", research_node)
+workflow.add_node("summarizer", summarize_node)
+
+workflow.set_entry_point("scanner")
+workflow.add_edge("scanner", "researcher")
+workflow.add_edge("researcher", "summarizer")
+workflow.add_edge("summarizer", END)
+
+app = workflow.compile()
