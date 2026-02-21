@@ -118,7 +118,14 @@ def research_node(state: AgentState):
         )
 
         response = llm.invoke(prompt)
-        item['ai_insight'] = response.content.strip()
+        if isinstance(response.content, list):
+            # Dig into the list -> first dictionary -> 'text' key
+            raw_text = response.content[0].get('text', '')
+        else:
+            # If it's already a string (fallback)
+            raw_text = response.content
+
+        item['ai_insight'] = raw_text.strip()
         enriched.append(item)
 
     return {"signals": enriched, "status": "Research Complete"}
@@ -133,18 +140,14 @@ def summarize_node(state: AgentState):
     report += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
 
     for s in signals:
-        report += "---\n"
-        report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | {s['trend']}\n"
+        report += f"### 🔍 {s['symbol']} | Price: ${s['price']}\n"
+        rsi_str = ", ".join([f"L{m['len']}: {m['val']}" for m in s['rsi_matches']])
+        report += f"**Triggers:** {rsi_str}\n\n"
 
-        # Display RSI Trigger Group
-        rsi_line = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s['rsi_matches']])
-        report += f"**Triggers:** {rsi_line}\n\n"
-
-        # Display AI Insight with Blockquote for clarity
-        report += "**AI Analysis:**\n"
+        # Now this will work without errors!
         insight = s.get('ai_insight', 'No analysis available.')
-        # Indent the insight to make it stand out
         report += f"> {insight}\n\n"
+        report += "---\n"
 
     print(report)
     return {"final_report": report}
