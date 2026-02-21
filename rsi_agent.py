@@ -1,7 +1,9 @@
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import pandas as pd
 import yfinance as yf
 import numpy as np
-import os
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import TypedDict, List, Optional
@@ -12,7 +14,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 # LangChain will now automatically find os.environ["GOOGLE_API_KEY"]
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3-flash-preview",
+    temperature=0.1
+)
 
 # --- 1. Configuration ---
 RSI_THRESHOLD = 27
@@ -27,9 +32,6 @@ class AgentState(TypedDict):
     # 'final_report' will hold the AI-formatted summary
     final_report: Optional[str]
     status: Optional[str]
-
-# Initialize AI
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
 # --- 3. Precision RSI Logic ---
 def calculate_rsi_wilder(series, period=14):
@@ -81,11 +83,12 @@ def rsi_scanner_node(state: AgentState):
                 if rsi_today < RSI_THRESHOLD:
                     signal_type = "CROSS_DOWN (NEW)" if rsi_yesterday >= RSI_THRESHOLD else "OVERSOLD"
                     found_signals.append({
-                        "Symbol": s,
-                        "Price": round(float(current_close), 2),
-                        "RSI_Len": length,
-                        "RSI_Val": round(float(rsi_today), 2),
-                        "Signal": signal_type
+                        "symbol": s,           # Changed from "Symbol"
+                        "price": round(float(current_close), 2), # Changed from "Price"
+                        "rsi_len": length,     # Changed from "RSI_Len"
+                        "rsi_val": round(float(rsi_today), 2),   # Changed from "RSI_Val"
+                        "trend": trend,        # Added so summarize_node can find it
+                        "signal": signal_type  # Changed from "Signal"
                     })
         except:
             continue
@@ -103,9 +106,9 @@ def research_node(state: AgentState):
 
     enriched = []
     for item in signals:
-        ticker = item['symbol']
-        # Call Gemini for the 'AI Element'
-        prompt = f"Analyze {ticker}. It is currently at an RSI of {item['rsi']}. Briefly mention one upcoming catalyst (like earnings) and the historical risk of buying this dip."
+        ticker = item['symbol'] # Now matches scanner
+        # Use rsi_val to match scanner
+        prompt = f"Analyze {ticker}. Current RSI is {item.get('rsi_val')}. Mention one catalyst and historical risk."
         response = llm.invoke(prompt)
 
         item['ai_insight'] = response.content
