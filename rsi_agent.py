@@ -20,10 +20,9 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # --- 1. Configuration ---
-RSI_THRESHOLD = 27
+RSI_THRESHOLD = 25
 RSI_LENGTHS = [10, 12, 14, 16, 18, 22, 26]
 CSV_FILE = "OptionVolume.csv"
-
 
 # --- 2. State Definition (JSON-Safe) ---
 class AgentState(TypedDict):
@@ -118,8 +117,8 @@ def research_node(state: AgentState):
             f"IGNORE all dates before the {current_date_str}. "
             f"\n\nDATA: {ticker} is currently oversold with RSI triggers: {rsi_summary}. "
             f"\n\nREQUIRED OUTPUT FORMAT:"
-            f"\nLine 1: NEXT EARNINGS: [Confirmed or Estimated Date]"
-            f"\nLine 2-4: A 3-sentence summary of current market sentiment and the "
+            f"\nNEXT EARNINGS: [Confirmed or Estimated Date]"
+            f"\nAnalysis: A 3-sentence summary of current market sentiment and the "
             f"historical risk/reward of buying this RSI level for {ticker}."
         )
 
