@@ -75,13 +75,17 @@ def rsi_scanner_node(state: AgentState):
             earnings_date = "N/A"
             try:
                 ticker_info = yf.Ticker(s)
-                cal = ticker_info.calendar
-                # If calendar exists and has 'Earnings Date'
-                if cal is not None and not cal.empty and 'Earnings Date' in cal.index:
-                    date_obj = cal.loc['Earnings Date'].iloc[0]
-                    earnings_date = date_obj.strftime('%Y-%m-%d')
+                # Check info dict first (it's often more reliable than .calendar)
+                earnings_ts = ticker_info.info.get('nextEarningsDate')
+                if earnings_ts:
+                    earnings_date = datetime.fromtimestamp(earnings_ts).strftime('%Y-%m-%d')
+                else:
+                    # Fallback to calendar
+                    cal = ticker_info.calendar
+                    if cal is not None and not cal.empty:
+                        earnings_date = cal.loc['Earnings Date'].iloc[0].strftime('%Y-%m-%d')
             except:
-                earnings_date = "Consult Financial Calendar"
+                earnings_date = "Check Nasdaq"
 
             # 3. Check RSI across all lengths
             rsi_matches = []
