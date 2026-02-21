@@ -16,7 +16,7 @@ load_dotenv()
 # LangChain will now automatically find os.environ["GOOGLE_API_KEY"]
 llm = ChatGoogleGenerativeAI(
     model="gemini-3-flash-preview",
-    temperature=0.1
+    tools=[{"google_search_grounding": {}}] # This allows the AI to search the web
 )
 
 # --- 1. Configuration ---
@@ -49,7 +49,7 @@ def calculate_rsi_wilder(series, period=14):
 
 # --- 4. The Scanner Node ---
 def rsi_scanner_node(state: AgentState):
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Multi-Length Scanner...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Lean Multi-Length Scanner...")
 
     try:
         df_csv = pd.read_csv(CSV_FILE)
@@ -65,29 +65,14 @@ def rsi_scanner_node(state: AgentState):
             # 1. Download Price Data
             df = yf.download(s, period="200d", interval="1d", progress=False, auto_adjust=True)
             if df.empty or len(df) < 50: continue
+
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
             current_close = float(df['Close'].iloc[-1])
             sma_200 = df['Close'].rolling(200).mean().iloc[-1]
 
-            # 2. Extract Earnings Date (Source of Truth)
-            earnings_date = "N/A"
-            try:
-                ticker_info = yf.Ticker(s)
-                # Check info dict first (it's often more reliable than .calendar)
-                earnings_ts = ticker_info.info.get('nextEarningsDate')
-                if earnings_ts:
-                    earnings_date = datetime.fromtimestamp(earnings_ts).strftime('%Y-%m-%d')
-                else:
-                    # Fallback to calendar
-                    cal = ticker_info.calendar
-                    if cal is not None and not cal.empty:
-                        earnings_date = cal.loc['Earnings Date'].iloc[0].strftime('%Y-%m-%d')
-            except:
-                earnings_date = "Check Nasdaq"
-
-            # 3. Check RSI across all lengths
+            # 2. Check RSI across all lengths
             rsi_matches = []
             for length in RSI_LENGTHS:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
@@ -96,12 +81,11 @@ def rsi_scanner_node(state: AgentState):
                 if rsi_today < RSI_THRESHOLD:
                     rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
 
-            # 4. Compile Signal
+            # 3. Compile Signal
             if rsi_matches:
                 found_signals.append({
                     "symbol": s,
                     "price": round(current_close, 2),
-                    "earnings_date": earnings_date, # Passed to the Research Node
                     "trend": "Bullish" if current_close > sma_200 else "Bearish",
                     "rsi_matches": rsi_matches,
                     "rsi_val": rsi_matches[0]['val']
@@ -117,37 +101,29 @@ def rsi_scanner_node(state: AgentState):
 # --- 5. Separate AI Research Node ---
 def research_node(state: AgentState):
     signals = state.get("signals", [])
-    if not signals:
-        return {"status": "No signals found to research."}
+    if not signals: return {"status": "No signals."}
 
     enriched = []
     for item in signals:
         ticker = item['symbol']
-
-        # Convert the list of matches into a readable string for the AI
         rsi_summary = ", ".join([f"L{m['len']}: {m['val']}" for m in item.get('rsi_matches', [])])
-        actual_date = item.get('earnings_date', 'N/A')
 
+        # PROMPT UPDATED FOR SEARCH GROUNDING
         prompt = (
-            f"Act as a quantitative analyst. Analyze {ticker}. "
-            f"FACT: The next earnings date is {actual_date}. "
-            f"Current RSI triggers: {rsi_summary}. "
-            f"Summarize market sentiment and the historical risk of buying this RSI dip in 3 sentences. "
-            f"Do not guess the earnings date; use the one provided."
+            f"Perform a Google Search to find the EXACT next earnings date for {ticker} from Nasdaq or a reliable financial source. "
+            f"Then, analyze the stock with current RSI triggers: {rsi_summary}. "
+            f"1. State the next earnings date clearly. "
+            f"2. Summarize market sentiment and the historical risk of buying this RSI level in 3 sentences or less. "
         )
 
         response = llm.invoke(prompt)
-        if isinstance(response.content, list):
-            # Dig into the list -> first dictionary -> 'text' key
-            raw_text = response.content[0].get('text', '')
-        else:
-            # If it's already a string (fallback)
-            raw_text = response.content
 
-        item['ai_insight'] = raw_text.strip()
+        # Data extraction safety (handling list vs string)
+        res_content = response.content[0].get('text', '') if isinstance(response.content, list) else response.content
+        item['ai_insight'] = res_content.strip()
         enriched.append(item)
 
-    return {"signals": enriched, "status": "Research Complete"}
+    return {"signals": enriched, "status": "Research with Search Grounding Complete"}
 
 # --- 6. Summarize Node (The Presentation Layer) ---
 def summarize_node(state: AgentState):
@@ -155,21 +131,19 @@ def summarize_node(state: AgentState):
     if not signals:
         return {"final_report": "No actionable RSI signals detected today."}
 
-    report = "## 📊 RSI QUANT RESEARCH REPORT\n\n"
+    report = "## 📊 RSI QUANT RESEARCH REPORT\n"
+    report += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
 
     for s in signals:
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']}\n"
-
-        # Display Yahoo Finance Earnings Date clearly
-        report += f"📅 **Next Earnings:** {s.get('earnings_date', 'N/A')}\n"
 
         # Display the RSI pairs
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
         report += f"📉 **Oversold Triggers:** {rsi_pairs}\n\n"
 
-        # Display the AI Insight
+        # Display the AI Insight (which now includes the searched Earnings Date)
         insight = s.get('ai_insight', 'Research pending...')
-        report += f"**AI Analysis:**\n> {insight}\n\n"
+        report += f"**AI Analysis & Search Grounding:**\n> {insight}\n\n"
         report += "---\n"
 
     print(report)
