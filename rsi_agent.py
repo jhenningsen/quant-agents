@@ -108,7 +108,12 @@ def research_node(state: AgentState):
     for item in signals:
         ticker = item['symbol'] # Now matches scanner
         # Use rsi_val to match scanner
-        prompt = f"Analyze {ticker}. Current RSI is {item.get('rsi_val')}. Mention one catalyst and historical risk."
+        prompt = (
+            f"Act as a quantitative analyst. Analyze {ticker} with a current RSI of {item.get('rsi_val')}. "
+            f"1. Identify the next confirmed or estimated Earnings Date. "
+            f"2. Summarize current market sentiment and one historical risk of buying this RSI level in 3 sentences or less. "
+            f"Focus on factual data and avoid generic financial advice."
+        )
         response = llm.invoke(prompt)
 
         item['ai_insight'] = response.content
@@ -128,7 +133,7 @@ def summarize_node(state: AgentState):
         report += f"**{s['symbol']}** (RSI: {s.get('rsi_val', 0):.1f})\n"
         report += f"- Trend: {s.get('trend', 'N/A')} | Price: ${s.get('price', 0)}\n"
         # Added .get() for ai_insight to prevent crashes if a specific ticker fails
-        report += f"- AI Insight: {s.get('ai_insight', 'No insight available.')}\n\n"
+        report += f"- Earnings & Sentiment: {s.get('ai_insight', 'No insight available.')}\n\n"
 
     print(report) # Also print to console
     return {"final_report": report, "status": "Finished"}
