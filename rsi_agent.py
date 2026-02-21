@@ -122,12 +122,14 @@ def research_node(state: AgentState):
 
         # Convert the list of matches into a readable string for the AI
         rsi_summary = ", ".join([f"L{m['len']}: {m['val']}" for m in item.get('rsi_matches', [])])
+        actual_date = item.get('earnings_date', 'N/A')
 
         prompt = (
             f"Act as a quantitative analyst. Analyze {ticker}. "
-            f"Current RSI triggers: {rsi_summary}. " # Pass all lengths here
-            f"1. Summarize current market sentiment and one historical risk of buying this RSI level in 3 sentences or less. "
-            f"Focus on factual data and avoid generic financial advice."
+            f"FACT: The next earnings date is {actual_date}. "
+            f"Current RSI triggers: {rsi_summary}. "
+            f"Summarize market sentiment and the historical risk of buying this RSI dip in 3 sentences. "
+            f"Do not guess the earnings date; use the one provided."
         )
 
         response = llm.invoke(prompt)
@@ -147,19 +149,23 @@ def research_node(state: AgentState):
 def summarize_node(state: AgentState):
     signals = state.get("signals", [])
     if not signals:
-        return {"final_report": "No signals found."}
+        return {"final_report": "No actionable RSI signals detected today."}
 
-    report = "## 📊 RSI QUANT RESEARCH REPORT\n"
-    report += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+    report = "## 📊 RSI QUANT RESEARCH REPORT\n\n"
 
     for s in signals:
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']}\n"
-        rsi_str = ", ".join([f"L{m['len']}: {m['val']}" for m in s['rsi_matches']])
-        report += f"**Triggers:** {rsi_str}\n\n"
 
-        # Now this will work without errors!
-        insight = s.get('ai_insight', 'No analysis available.')
-        report += f"> {insight}\n\n"
+        # Display Yahoo Finance Earnings Date clearly
+        report += f"📅 **Next Earnings:** {s.get('earnings_date', 'N/A')}\n"
+
+        # Display the RSI pairs
+        rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
+        report += f"📉 **Oversold Triggers:** {rsi_pairs}\n\n"
+
+        # Display the AI Insight
+        insight = s.get('ai_insight', 'Research pending...')
+        report += f"**AI Analysis:**\n> {insight}\n\n"
         report += "---\n"
 
     print(report)
