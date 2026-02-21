@@ -103,6 +103,8 @@ def research_node(state: AgentState):
     signals = state.get("signals", [])
     if not signals: return {"status": "No signals."}
 
+    current_date_str = datetime.now().strftime('%B %d, %Y')
+
     enriched = []
     for item in signals:
         ticker = item['symbol']
@@ -110,13 +112,13 @@ def research_node(state: AgentState):
 
         # PROMPT UPDATED FOR SEARCH GROUNDING
         prompt = (
-            f"SYSTEM: The current date is {current_date_str}. It is the year 2026. "
+            f"SYSTEM: The current date is {current_date_str}.  "
             f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find the "
-            f"NEXT UPCOMING earnings date for {ticker} (expected in 2026). "
-            f"IGNORE all dates before the current date. "
+            f"NEXT UPCOMING earnings date for {ticker} (this should be after the {current_date_str}). "
+            f"IGNORE all dates before the {current_date_str}. "
             f"\n\nDATA: {ticker} is currently oversold with RSI triggers: {rsi_summary}. "
             f"\n\nREQUIRED OUTPUT FORMAT:"
-            f"\nLine 1: NEXT EARNINGS: [Confirmed or Estimated Date for 2026]"
+            f"\nLine 1: NEXT EARNINGS: [Confirmed or Estimated Date]"
             f"\nLine 2-4: A 3-sentence summary of current market sentiment and the "
             f"historical risk/reward of buying this RSI level for {ticker}."
         )
