@@ -118,7 +118,7 @@ def research_node(state: AgentState):
         )
 
         response = llm.invoke(prompt)
-        item['ai_insight'] = response.content
+        item['ai_insight'] = response.content.strip()
         enriched.append(item)
 
     return {"signals": enriched, "status": "Research Complete"}
@@ -127,23 +127,27 @@ def research_node(state: AgentState):
 def summarize_node(state: AgentState):
     signals = state.get("signals", [])
     if not signals:
-        return {"final_report": "No actionable RSI signals detected today."}
+        return {"final_report": "No signals found."}
 
-    report = "### 📈 RSI MULTI-LENGTH SUMMARY\n\n"
+    report = "## 📊 RSI QUANT RESEARCH REPORT\n"
+    report += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
 
     for s in signals:
-        report += f"**{s['symbol']}** | Price: ${s['price']} | Trend: {s['trend']}\n"
-
-        # Format the RSI pairs: "10: 22.4, 14: 25.1"
-        rsi_str = ", ".join([f"L{m['len']}: {m['val']}" for m in s['rsi_matches']])
-        report += f"> **Oversold Levels:** {rsi_str}\n"
-
-        # Include the AI Insight
-        report += f"- AI Insight: {s.get('ai_insight', 'N/A')}\n\n"
         report += "---\n"
+        report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | {s['trend']}\n"
+
+        # Display RSI Trigger Group
+        rsi_line = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s['rsi_matches']])
+        report += f"**Triggers:** {rsi_line}\n\n"
+
+        # Display AI Insight with Blockquote for clarity
+        report += "**AI Analysis:**\n"
+        insight = s.get('ai_insight', 'No analysis available.')
+        # Indent the insight to make it stand out
+        report += f"> {insight}\n\n"
 
     print(report)
-    return {"final_report": report, "status": "Finished"}
+    return {"final_report": report}
 
 # --- 7. Build the Graph ---
 workflow = StateGraph(AgentState)
