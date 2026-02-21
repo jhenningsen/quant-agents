@@ -62,6 +62,7 @@ def rsi_scanner_node(state: AgentState):
 
     for s in symbols:
         try:
+            # 1. Download Price Data
             df = yf.download(s, period="200d", interval="1d", progress=False, auto_adjust=True)
             if df.empty or len(df) < 50: continue
             if isinstance(df.columns, pd.MultiIndex):
@@ -70,7 +71,19 @@ def rsi_scanner_node(state: AgentState):
             current_close = float(df['Close'].iloc[-1])
             sma_200 = df['Close'].rolling(200).mean().iloc[-1]
 
-            # --- Minimal Change: Group matches for this specific symbol ---
+            # 2. Extract Earnings Date (Source of Truth)
+            earnings_date = "N/A"
+            try:
+                ticker_info = yf.Ticker(s)
+                cal = ticker_info.calendar
+                # If calendar exists and has 'Earnings Date'
+                if cal is not None and not cal.empty and 'Earnings Date' in cal.index:
+                    date_obj = cal.loc['Earnings Date'].iloc[0]
+                    earnings_date = date_obj.strftime('%Y-%m-%d')
+            except:
+                earnings_date = "Consult Financial Calendar"
+
+            # 3. Check RSI across all lengths
             rsi_matches = []
             for length in RSI_LENGTHS:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
@@ -79,14 +92,15 @@ def rsi_scanner_node(state: AgentState):
                 if rsi_today < RSI_THRESHOLD:
                     rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
 
-            # Only add to found_signals if at least one RSI length triggered
+            # 4. Compile Signal
             if rsi_matches:
                 found_signals.append({
                     "symbol": s,
                     "price": round(current_close, 2),
+                    "earnings_date": earnings_date, # Passed to the Research Node
                     "trend": "Bullish" if current_close > sma_200 else "Bearish",
-                    "rsi_matches": rsi_matches, # New key containing the list of pairs
-                    "rsi_val": rsi_matches[0]['val'] # Keep for backward compatibility with researcher
+                    "rsi_matches": rsi_matches,
+                    "rsi_val": rsi_matches[0]['val']
                 })
         except:
             continue
@@ -112,8 +126,7 @@ def research_node(state: AgentState):
         prompt = (
             f"Act as a quantitative analyst. Analyze {ticker}. "
             f"Current RSI triggers: {rsi_summary}. " # Pass all lengths here
-            f"1. Identify the next confirmed or estimated Earnings Date. "
-            f"2. Summarize current market sentiment and one historical risk of buying this RSI level in 3 sentences or less. "
+            f"1. Summarize current market sentiment and one historical risk of buying this RSI level in 3 sentences or less. "
             f"Focus on factual data and avoid generic financial advice."
         )
 
