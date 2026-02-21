@@ -110,10 +110,15 @@ def research_node(state: AgentState):
 
         # PROMPT UPDATED FOR SEARCH GROUNDING
         prompt = (
-            f"Perform a Google Search to find the EXACT next earnings date for {ticker} from Nasdaq or a reliable financial source. "
-            f"Then, analyze the stock with current RSI triggers: {rsi_summary}. "
-            f"1. State the next earnings date clearly. "
-            f"2. Summarize market sentiment and the historical risk of buying this RSI level in 3 sentences or less. "
+            f"SYSTEM: The current date is {current_date_str}. It is the year 2026. "
+            f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find the "
+            f"NEXT UPCOMING earnings date for {ticker} (expected in 2026). "
+            f"IGNORE all dates before the current date. "
+            f"\n\nDATA: {ticker} is currently oversold with RSI triggers: {rsi_summary}. "
+            f"\n\nREQUIRED OUTPUT FORMAT:"
+            f"\nLine 1: NEXT EARNINGS: [Confirmed or Estimated Date for 2026]"
+            f"\nLine 2-4: A 3-sentence summary of current market sentiment and the "
+            f"historical risk/reward of buying this RSI level for {ticker}."
         )
 
         response = llm.invoke(prompt)
@@ -129,21 +134,24 @@ def research_node(state: AgentState):
 def summarize_node(state: AgentState):
     signals = state.get("signals", [])
     if not signals:
-        return {"final_report": "No actionable RSI signals detected today."}
+        return {"final_report": "No signals found."}
 
-    report = "## 📊 RSI QUANT RESEARCH REPORT\n"
-    report += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+    report = "## 📈 RSI QUANT REPORT (GROUNDED SEARCH)\n\n"
 
     for s in signals:
+        insight = s.get('ai_insight', 'Pending...')
+
+        # Try to extract the "NEXT EARNINGS" line we forced in the prompt
+        lines = insight.split('\n')
+        earnings_line = lines[0] if "NEXT EARNINGS" in lines[0] else "📅 Next Earnings: See Analysis"
+        cleaned_insight = "\n".join(lines[1:]) if "NEXT EARNINGS" in lines[0] else insight
+
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']}\n"
+        report += f"**{earnings_line}**\n" # Displays the fresh 2026 date
 
-        # Display the RSI pairs
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
-        report += f"📉 **Oversold Triggers:** {rsi_pairs}\n\n"
-
-        # Display the AI Insight (which now includes the searched Earnings Date)
-        insight = s.get('ai_insight', 'Research pending...')
-        report += f"**AI Analysis & Search Grounding:**\n> {insight}\n\n"
+        report += f"📉 **RSI Triggers:** {rsi_pairs}\n\n"
+        report += f"**AI Analysis:**\n> {cleaned_insight.strip()}\n\n"
         report += "---\n"
 
     print(report)
