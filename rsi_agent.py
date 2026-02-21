@@ -49,7 +49,7 @@ def calculate_rsi_wilder(series, period=14):
 
 # --- 4. The Scanner Node ---
 def rsi_scanner_node(state: AgentState):
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Full Scanner...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Multi-Length Scanner...")
 
     try:
         df_csv = pd.read_csv(CSV_FILE)
@@ -62,40 +62,38 @@ def rsi_scanner_node(state: AgentState):
 
     for s in symbols:
         try:
-            # PULLING 200 DAYS: Required for RSI math to stabilize and match Yahoo/TradingView
             df = yf.download(s, period="200d", interval="1d", progress=False, auto_adjust=True)
             if df.empty or len(df) < 50: continue
-
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
-            current_close = df['Close'].iloc[-1]
-
-            # Optional: Keep SMA 200 just as a data point, not a filter
+            current_close = float(df['Close'].iloc[-1])
             sma_200 = df['Close'].rolling(200).mean().iloc[-1]
-            trend = "Bullish" if current_close > sma_200 else "Bearish"
 
+            # --- Minimal Change: Group matches for this specific symbol ---
+            rsi_matches = []
             for length in RSI_LENGTHS:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
-                rsi_today = rsi_series.iloc[-1]
-                rsi_yesterday = rsi_series.iloc[-2]
+                rsi_today = float(rsi_series.iloc[-1])
 
                 if rsi_today < RSI_THRESHOLD:
-                    signal_type = "CROSS_DOWN (NEW)" if rsi_yesterday >= RSI_THRESHOLD else "OVERSOLD"
-                    found_signals.append({
-                        "symbol": s,           # Changed from "Symbol"
-                        "price": round(float(current_close), 2), # Changed from "Price"
-                        "rsi_len": length,     # Changed from "RSI_Len"
-                        "rsi_val": round(float(rsi_today), 2),   # Changed from "RSI_Val"
-                        "trend": trend,        # Added so summarize_node can find it
-                        "signal": signal_type  # Changed from "Signal"
-                    })
+                    rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
+
+            # Only add to found_signals if at least one RSI length triggered
+            if rsi_matches:
+                found_signals.append({
+                    "symbol": s,
+                    "price": round(current_close, 2),
+                    "trend": "Bullish" if current_close > sma_200 else "Bearish",
+                    "rsi_matches": rsi_matches, # New key containing the list of pairs
+                    "rsi_val": rsi_matches[0]['val'] # Keep for backward compatibility with researcher
+                })
         except:
             continue
 
     return {
         "signals": found_signals,
-        "status": f"Found {len(found_signals)} signals"
+        "status": f"Found {len(found_signals)} tickers with signals"
     }
 
 # --- 5. Separate AI Research Node ---
@@ -106,16 +104,20 @@ def research_node(state: AgentState):
 
     enriched = []
     for item in signals:
-        ticker = item['symbol'] # Now matches scanner
-        # Use rsi_val to match scanner
+        ticker = item['symbol']
+
+        # Convert the list of matches into a readable string for the AI
+        rsi_summary = ", ".join([f"L{m['len']}: {m['val']}" for m in item.get('rsi_matches', [])])
+
         prompt = (
-            f"Act as a quantitative analyst. Analyze {ticker} with a current RSI of {item.get('rsi_val')}. "
+            f"Act as a quantitative analyst. Analyze {ticker}. "
+            f"Current RSI triggers: {rsi_summary}. " # Pass all lengths here
             f"1. Identify the next confirmed or estimated Earnings Date. "
             f"2. Summarize current market sentiment and one historical risk of buying this RSI level in 3 sentences or less. "
             f"Focus on factual data and avoid generic financial advice."
         )
-        response = llm.invoke(prompt)
 
+        response = llm.invoke(prompt)
         item['ai_insight'] = response.content
         enriched.append(item)
 
@@ -127,15 +129,20 @@ def summarize_node(state: AgentState):
     if not signals:
         return {"final_report": "No actionable RSI signals detected today."}
 
-    # Creating a structured text summary
-    report = "### 📈 RSI SCANNER SUMMARY\n\n"
-    for s in signals:
-        report += f"**{s['symbol']}** (RSI: {s.get('rsi_val', 0):.1f})\n"
-        report += f"- Trend: {s.get('trend', 'N/A')} | Price: ${s.get('price', 0)}\n"
-        # Added .get() for ai_insight to prevent crashes if a specific ticker fails
-        report += f"- Earnings & Sentiment: {s.get('ai_insight', 'No insight available.')}\n\n"
+    report = "### 📈 RSI MULTI-LENGTH SUMMARY\n\n"
 
-    print(report) # Also print to console
+    for s in signals:
+        report += f"**{s['symbol']}** | Price: ${s['price']} | Trend: {s['trend']}\n"
+
+        # Format the RSI pairs: "10: 22.4, 14: 25.1"
+        rsi_str = ", ".join([f"L{m['len']}: {m['val']}" for m in s['rsi_matches']])
+        report += f"> **Oversold Levels:** {rsi_str}\n"
+
+        # Include the AI Insight
+        report += f"- AI Insight: {s.get('ai_insight', 'N/A')}\n\n"
+        report += "---\n"
+
+    print(report)
     return {"final_report": report, "status": "Finished"}
 
 # --- 7. Build the Graph ---
