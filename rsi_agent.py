@@ -59,7 +59,7 @@ def rsi_scanner_node(state: AgentState):
 
     found_signals = []
 
-    for s in symbols:
+    for idx, s in enumerate(symbols):
         try:
             # 1. Download Price Data
             df = yf.download(s, period="200d", interval="1d", progress=False, auto_adjust=True)
@@ -86,6 +86,7 @@ def rsi_scanner_node(state: AgentState):
                     "symbol": s,
                     "price": round(current_close, 2),
                     "trend": "Bullish" if current_close > sma_200 else "Bearish",
+                    "position": idx + 1,
                     "rsi_matches": rsi_matches,
                     "rsi_val": rsi_matches[0]['val']
                 })
@@ -147,7 +148,7 @@ def summarize_node(state: AgentState):
         earnings_line = lines[0] if "NEXT EARNINGS" in lines[0] else "📅 Next Earnings: See Analysis"
         cleaned_insight = "\n".join(lines[1:]) if "NEXT EARNINGS" in lines[0] else insight
 
-        report += f"### 🔍 {s['symbol']} | Price: ${s['price']}\n"
+        report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | Option Volume Rank: #{s['position']}\n"
         report += f"**{earnings_line}**\n" # Displays the fresh 2026 date
 
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
