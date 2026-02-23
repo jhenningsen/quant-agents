@@ -82,14 +82,15 @@ def rsi_scanner_node(state: AgentState):
 
             # 3. Compile Signal
             if rsi_matches:
-                found_signals.append({
+                signal_data = {
                     "symbol": s,
                     "price": round(current_close, 2),
                     "trend": "Bullish" if current_close > sma_200 else "Bearish",
                     "position": idx + 1,
                     "rsi_matches": rsi_matches,
                     "rsi_val": rsi_matches[0]['val']
-                })
+                }
+                found_signals.append(signal_data)
         except:
             continue
 
