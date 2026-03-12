@@ -124,7 +124,7 @@ def summarize_node(state: AgentState):
         return {"final_report": "No momentum breakouts found today."}
 
     report = "## 🔥 RSI MOMENTUM POWER ZONE REPORT\n"
-    report += "> *Signals triggered by RSI crossing ABOVE 70 (Initial Momentum Blast)*\n\n"
+    report += "> *Signals triggered by RSI crossing ABOVE 80 (Initial Momentum Blast)*\n\n"
 
     for s in signals:
         insight = s.get('ai_insight', 'Pending...')
@@ -144,13 +144,12 @@ def summarize_node(state: AgentState):
 # --- 7. Build Graph ---
 workflow = StateGraph(AgentState)
 workflow.add_node("scanner", rsi_scanner_node)
-#workflow.add_node("researcher", research_node)
+workflow.add_node("researcher", research_node)
 workflow.add_node("summarizer", summarize_node)
 
 workflow.set_entry_point("scanner")
-#workflow.add_edge("scanner", "researcher")
-workflow.add_edge("scanner", "summarizer")
-#workflow.add_edge("researcher", "summarizer")
+workflow.add_edge("scanner", "researcher")
+workflow.add_edge("researcher", "summarizer")
 workflow.add_edge("summarizer", END)
 
 graph = workflow.compile()
