@@ -71,7 +71,7 @@ def rsi_scanner_node(state: AgentState):
                 rsi_yesterday = float(rsi_series.iloc[-2])
 
                 # TRIGGER: Just entered the Power Zone (> 70) from below
-                if rsi_today > RSI_THRESHOLD and rsi_yesterday <= RSI_THRESHOLD:
+                if rsi_today > RSI_THRESHOLD:
                     rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
 
             if rsi_matches:
