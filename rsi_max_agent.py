@@ -68,7 +68,6 @@ def rsi_scanner_node(state: AgentState):
             for length in RSI_LENGTHS:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
                 rsi_today = float(rsi_series.iloc[-1])
-                rsi_yesterday = float(rsi_series.iloc[-2])
 
                 # TRIGGER: Just entered the Power Zone (> 70) from below
                 if rsi_today > RSI_THRESHOLD:
