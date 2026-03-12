@@ -144,12 +144,13 @@ def summarize_node(state: AgentState):
 # --- 7. Build Graph ---
 workflow = StateGraph(AgentState)
 workflow.add_node("scanner", rsi_scanner_node)
-workflow.add_node("researcher", research_node)
+#workflow.add_node("researcher", research_node)
 workflow.add_node("summarizer", summarize_node)
 
 workflow.set_entry_point("scanner")
-workflow.add_edge("scanner", "researcher")
-workflow.add_edge("researcher", "summarizer")
+#workflow.add_edge("scanner", "researcher")
+workflow.add_edge("scanner", "summarizer")
+#workflow.add_edge("researcher", "summarizer")
 workflow.add_edge("summarizer", END)
 
 graph = workflow.compile()

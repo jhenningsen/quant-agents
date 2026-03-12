@@ -3,6 +3,7 @@
   "graphs": {
     "momentum_agent": "./agent.py:graph",
     "rsi_agent": "./rsi_agent.py:graph",
+    "rsi_max_agent": "./rsi_max_agent.py:graph",
     "hmm_agent": "./hmm_agent.py:graph"
   }
 }
