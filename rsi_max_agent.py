@@ -55,7 +55,7 @@ def rsi_scanner_node(state: AgentState):
     for idx, s in enumerate(symbols):
         try:
             # Need at least 2 days to check for crossover
-            df = yf.download(s, period="200d", interval="1d", progress=False, auto_adjust=True)
+            df = yf.download(s, period="300d", interval="1d", progress=False, auto_adjust=True)
             if df.empty or len(df) < 30: continue
 
             if isinstance(df.columns, pd.MultiIndex):
