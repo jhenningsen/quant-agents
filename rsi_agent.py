@@ -21,7 +21,7 @@ llm = ChatGoogleGenerativeAI(
 
 # --- 1. Configuration ---
 RSI_THRESHOLD = 25
-RSI_LENGTHS = [10, 12, 14, 16, 18, 22, 26]
+RSI_LENGTHS = [12, 14, 16, 18]
 CSV_FILE = "OptionVolume.csv"
 
 # --- 2. State Definition (JSON-Safe) ---
