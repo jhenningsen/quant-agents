@@ -20,8 +20,13 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # --- 1. Configuration ---
-RSI_THRESHOLD = 25
-RSI_LENGTHS = [12, 14, 16, 18]
+# Format: (Length, Threshold)
+RSI_CONFIG = [
+    (10, 20),
+    (12, 25),
+    (14, 30),
+    (26, 30)
+]
 CSV_FILE = "OptionVolume.csv"
 
 # --- 2. State Definition (JSON-Safe) ---
@@ -71,14 +76,19 @@ def rsi_scanner_node(state: AgentState):
             current_close = float(df['Close'].iloc[-1])
             sma_200 = df['Close'].rolling(200).mean().iloc[-1]
 
-            # 2. Check RSI across all lengths
+            # 2. Check RSI across configured pairs
             rsi_matches = []
-            for length in RSI_LENGTHS:
+            for length, threshold in RSI_CONFIG:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
                 rsi_today = float(rsi_series.iloc[-1])
 
-                if rsi_today < RSI_THRESHOLD:
-                    rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
+                # Evaluate current RSI against its specific paired threshold
+                if rsi_today < threshold:
+                    rsi_matches.append({
+                        "len": length,
+                        "val": round(rsi_today, 2),
+                        "threshold": threshold  # Optional: carry threshold for AI context
+                    })
 
             # 3. Compile Signal
             if rsi_matches:
@@ -109,7 +119,7 @@ def research_node(state: AgentState):
     enriched = []
     for item in signals:
         ticker = item['symbol']
-        rsi_summary = ", ".join([f"L{m['len']}: {m['val']}" for m in item.get('rsi_matches', [])])
+        rsi_summary = ", ".join([f"L{m['len']} (Val: {m['val']} < Thresh: {m['threshold']})" for m in item.get('rsi_matches', [])])
 
         # PROMPT UPDATED FOR SEARCH GROUNDING
         prompt = (
