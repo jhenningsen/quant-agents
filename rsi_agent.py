@@ -22,9 +22,12 @@ llm = ChatGoogleGenerativeAI(
 # --- 1. Configuration ---
 # Format: (Length, Threshold)
 RSI_CONFIG = [
-    (10, 20),
-    (12, 25),
-    (14, 30),
+    (16, 25),
+    (24, 30),
+    (14, 25),
+    (22, 30),
+    (18, 25),
+    (22, 25),
     (26, 30)
 ]
 CSV_FILE = "OptionVolume.csv"

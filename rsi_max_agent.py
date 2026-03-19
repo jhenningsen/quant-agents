@@ -19,8 +19,11 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # --- 1. Configuration (Power Zone Logic) ---
-RSI_THRESHOLD = 80  # Scanning for Overbought/Momentum Ignition
-RSI_LENGTHS = [7, 10] # Focused on medium-term momentum
+# Format: (Length, Threshold)
+RSI_CONFIG = [
+    (10, 80),
+    (14, 75)
+]
 CSV_FILE = "OptionVolume.csv"
 
 # --- 2. State Definition ---
@@ -64,14 +67,20 @@ def rsi_scanner_node(state: AgentState):
             current_close = float(df['Close'].iloc[-1])
             sma_200 = df['Close'].rolling(200).mean().iloc[-1]
 
+            # 2. Check RSI across configured Momentum Pairs
             rsi_matches = []
-            for length in RSI_LENGTHS:
+            for length, threshold in RSI_CONFIG:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
                 rsi_today = float(rsi_series.iloc[-1])
+                rsi_yesterday = float(rsi_series.iloc[-2])
 
-                # TRIGGER: Just entered the Power Zone (> 70) from below
-                if rsi_today > RSI_THRESHOLD:
-                    rsi_matches.append({"len": length, "val": round(rsi_today, 2)})
+                # TRIGGER: Momentum Ignition (Crossing ABOVE threshold)
+                if rsi_today > threshold and rsi_yesterday <= threshold:
+                    rsi_matches.append({
+                        "len": length,
+                        "val": round(rsi_today, 2),
+                        "threshold": threshold
+                    })
 
             if rsi_matches:
                 found_signals.append({
@@ -133,7 +142,7 @@ def summarize_node(state: AgentState):
 
         report += f"### 🚀 {s['symbol']} | Price: ${s['price']} | Trend: {s['trend']}\n"
         report += f"**{earnings_line}**\n"
-        rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
+        rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']} (Blast > {m['threshold']})" for m in s.get('rsi_matches', [])])
         report += f"⚡ **Momentum Strength:** {rsi_pairs}\n\n"
         report += f"**AI Momentum Analysis:**\n> {cleaned_insight.strip()}\n\n"
         report += "---\n"
