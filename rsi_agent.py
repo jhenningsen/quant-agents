@@ -128,13 +128,16 @@ def research_node(state: AgentState):
         prompt = (
             f"SYSTEM: The current date is {current_date_str}.  "
             f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find the "
+            f"LAST earnings date for {ticker} (this should be after the {current_date_str}). "
+            f"IGNORE all dates after the {current_date_str}. "
             f"NEXT UPCOMING earnings date for {ticker} (this should be after the {current_date_str}). "
             f"IGNORE all dates before the {current_date_str}. "
             f"\n\nDATA: {ticker} is currently oversold with RSI triggers: {rsi_summary}. "
             f"\n\nREQUIRED OUTPUT FORMAT:"
+            f"\nLAST EARNINGS: [Confirmed or Estimated Date]"
             f"\nNEXT EARNINGS: [Confirmed or Estimated Date]"
-            f"\nAnalysis: A 3-sentence summary of current market sentiment and the "
-            f"historical risk/reward of buying this RSI level for {ticker}."
+            f"\nAnalysis: A 3-sentence summary of current market sentiment with a focus on why the stock "
+            f"\nis down over the last few days and the historical risk/reward of buying this RSI level for {ticker}."
         )
 
         response = llm.invoke(prompt)
@@ -156,14 +159,18 @@ def summarize_node(state: AgentState):
 
     for s in signals:
         insight = s.get('ai_insight', 'Pending...')
-
-        # Try to extract the "NEXT EARNINGS" line we forced in the prompt
         lines = insight.split('\n')
-        earnings_line = lines[0] if "NEXT EARNINGS" in lines[0] else "📅 Next Earnings: See Analysis"
-        cleaned_insight = "\n".join(lines[1:]) if "NEXT EARNINGS" in lines[0] else insight
+
+        # Extract specific lines with safety fallbacks
+        next_e = next((l for l in lines if "NEXT EARNINGS" in l), "📅 Next Earnings: N/A")
+        last_e = next((l for l in lines if "LAST EARNINGS" in l), "⏪ Last Earnings: N/A")
+
+        # Filter out the date lines to leave only the Analysis text
+        cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l and "Analysis" not in l])
 
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | Option Volume Rank: #{s['position']}\n"
-        report += f"**{earnings_line}**\n" # Displays the fresh 2026 date
+        report += f"**{next_e}**\n"
+        report += f"**{last_e}**\n" # Added display for last earnings
 
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']}" for m in s.get('rsi_matches', [])])
         report += f"📉 **RSI Triggers:** {rsi_pairs}\n\n"
