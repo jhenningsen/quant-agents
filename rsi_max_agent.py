@@ -109,11 +109,14 @@ def research_node(state: AgentState):
 
         prompt = (
             f"SYSTEM: Current date is {current_date_str}. "
-            f"INSTRUCTION: Use GOOGLE SEARCH to find the next earnings date for {ticker}. "
-            f"\n\nDATA: {ticker} just triggered a Momentum Power Zone signal (RSI > 80) at {rsi_summary}. "
-            f"Analyze if this is a 'FOMO top' or a legitimate 'Institutional Breakout.' "
+            f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find: "
+            f"1) The NEXT UPCOMING earnings date for {ticker}. "
+            f"2) The MOST RECENT (LAST) earnings date that already occurred for {ticker}. "
+            f"\n\nDATA: {ticker} just triggered a Momentum Power Zone signal with triggers: {rsi_summary}. "
+            f"Analyze the likelihood of further price appreciation "
             f"\n\nREQUIRED OUTPUT FORMAT:"
-            f"\nNEXT EARNINGS: [Confirmed or Estimated Date]"
+            f"\nNEXT EARNINGS: [Date]"
+            f"\nLAST EARNINGS: [Date]"
             f"\nAnalysis: 3-sentence summary regarding recent news catalysts and if "
             f"this level has historically led to further expansion for {ticker}."
         )
@@ -127,21 +130,22 @@ def research_node(state: AgentState):
 
 # --- 6. Summarize Node ---
 def summarize_node(state: AgentState):
-    signals = state.get("signals", [])
-    if not signals:
-        return {"final_report": "No momentum breakouts found today."}
-
-    report = "## 🔥 RSI MOMENTUM POWER ZONE REPORT\n"
-    report += "> *Signals triggered by RSI crossing ABOVE 80 (Initial Momentum Blast)*\n\n"
-
+    # ... (existing setup) ...
     for s in signals:
         insight = s.get('ai_insight', 'Pending...')
         lines = insight.split('\n')
-        earnings_line = lines[0] if "NEXT EARNINGS" in lines[0] else "📅 Next Earnings: N/A"
-        cleaned_insight = "\n".join(lines[1:]) if "NEXT EARNINGS" in lines[0] else insight
+
+        # Extract both dates with specific lookups
+        next_e = next((l for l in lines if "NEXT EARNINGS" in l), "📅 Next Earnings: N/A")
+        last_e = next((l for l in lines if "LAST EARNINGS" in l), "⏪ Last Earnings: N/A")
+
+        # Clean the insight to remove the extracted headers
+        cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l and "Analysis" not in l])
 
         report += f"### 🚀 {s['symbol']} | Price: ${s['price']} | Trend: {s['trend']}\n"
-        report += f"**{earnings_line}**\n"
+        report += f"**{next_e}**\n"
+        report += f"**{last_e}**\n" # Displays the most recent earnings date
+
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']} (Blast > {m['threshold']})" for m in s.get('rsi_matches', [])])
         report += f"⚡ **Momentum Strength:** {rsi_pairs}\n\n"
         report += f"**AI Momentum Analysis:**\n> {cleaned_insight.strip()}\n\n"
