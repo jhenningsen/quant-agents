@@ -133,27 +133,32 @@ def summarize_node(state: AgentState):
     if not signals:
         return {"final_report": "No momentum breakouts found today."}
 
-    report = "## 🔥 RSI MOMENTUM POWER ZONE REPORT\n"
-    report += "> *Signals triggered by RSI crossing ABOVE 80 (Initial Momentum Blast)*\n\n"
+    report = "## 🔥 RSI MOMENTUM POWER ZONE REPORT\n\n"
 
     for s in signals:
         insight = s.get('ai_insight', 'Pending...')
         lines = insight.split('\n')
 
-        # Extract both dates with specific lookups
+        # 1. Extract specific lines
         next_e = next((l for l in lines if "NEXT EARNINGS" in l), "📅 Next Earnings: N/A")
         last_e = next((l for l in lines if "LAST EARNINGS" in l), "⏪ Last Earnings: N/A")
 
-        # Clean the insight to remove the extracted headers
-        cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l and "Analysis" not in l])
+        # 2. Extract the Analysis text specifically
+        # We look for the line starting with "Analysis:" and remove that prefix
+        analysis_line = next((l for l in lines if l.startswith("Analysis:")), "")
+        if not analysis_line:
+            # Fallback: if AI didn't label it, just take the last few lines that aren't dates
+            analysis_text = "\n".join([l for l in lines if "EARNINGS" not in l]).strip()
+        else:
+            analysis_text = analysis_line.replace("Analysis:", "").strip()
 
         report += f"### 🚀 {s['symbol']} | Price: ${s['price']} | Trend: {s['trend']}\n"
         report += f"**{next_e}**\n"
-        report += f"**{last_e}**\n" # Displays the most recent earnings date
+        report += f"**{last_e}**\n"
 
         rsi_pairs = ", ".join([f"**L{m['len']}**: {m['val']} (Blast > {m['threshold']})" for m in s.get('rsi_matches', [])])
         report += f"⚡ **Momentum Strength:** {rsi_pairs}\n\n"
-        report += f"**AI Momentum Analysis:**\n> {cleaned_insight.strip()}\n\n"
+        report += f"**AI Momentum Analysis:**\n> {analysis_text}\n\n"
         report += "---\n"
 
     return {"final_report": report}
