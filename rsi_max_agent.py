@@ -128,9 +128,14 @@ def research_node(state: AgentState):
 
     return {"signals": enriched, "status": "Momentum Research Complete"}
 
-# --- 6. Summarize Node ---
 def summarize_node(state: AgentState):
-    # ... (existing setup) ...
+    signals = state.get("signals", [])
+    if not signals:
+        return {"final_report": "No momentum breakouts found today."}
+
+    report = "## 🔥 RSI MOMENTUM POWER ZONE REPORT\n"
+    report += "> *Signals triggered by RSI crossing ABOVE 80 (Initial Momentum Blast)*\n\n"
+
     for s in signals:
         insight = s.get('ai_insight', 'Pending...')
         lines = insight.split('\n')
