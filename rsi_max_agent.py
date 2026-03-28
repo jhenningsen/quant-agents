@@ -119,8 +119,8 @@ def research_node(state: AgentState):
             f"\n\nREQUIRED OUTPUT FORMAT:"
             f"\nNEXT EARNINGS: [Date]"
             f"\nLAST EARNINGS: [Date]"
-            f"\nAnalysis: 3-sentence summary regarding recent news catalysts and if "
-            f"this level has historically led to further expansion for {ticker}."
+            f"\nAnalysis: 4-sentence summary regarding recent news catalysts and market sentiment. Also include "
+            f"analysis on whether this RSI level has historically led to further expansion for {ticker}."
         )
 
         response = llm.invoke(prompt)

@@ -139,8 +139,8 @@ def research_node(state: AgentState):
             f"\n\nREQUIRED OUTPUT FORMAT:"
             f"\nLAST EARNINGS: [Confirmed or Estimated Date]"
             f"\nNEXT EARNINGS: [Confirmed or Estimated Date]"
-            f"\nAnalysis: A 3-sentence summary of current market sentiment with a focus on why the stock "
-            f"is down over the last few days and the historical risk/reward of buying this RSI level for {ticker}."
+            f"\nAnalysis: A 4-sentence summary of current news and market sentiment with a focus on why the stock "
+            f"is down over recent trading sessions and the historical risk/reward of buying this RSI level for {ticker}."
         )
 
         response = llm.invoke(prompt)
