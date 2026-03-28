@@ -168,13 +168,22 @@ def summarize_node(state: AgentState):
         next_e = next((l for l in lines if "NEXT EARNINGS" in l), "📅 Next Earnings: N/A")
         last_e = next((l for l in lines if "LAST EARNINGS" in l), "⏪ Last Earnings: N/A")
 
-        # Specifically grab the analysis line and remove the "Analysis:" prefix
-        analysis_line = next((l for l in lines if "Analysis:" in l), "")
-        cleaned_insight = analysis_line.replace("Analysis:", "").strip()
+        # Find the index where the analysis starts
+        analysis_start_idx = -1
+        for i, line in enumerate(lines):
+            if "analysis:" in line.lower():
+                analysis_start_idx = i
+                break
 
-        # If AI didn't use the "Analysis:" prefix, grab the non-date lines
-        if not cleaned_insight:
-            cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l]).strip()
+        if analysis_start_idx != -1:
+            # Join all lines starting from the analysis label
+            full_analysis = " ".join(lines[analysis_start_idx:])
+            # Remove the label regardless of case (Analysis:, analysis:, etc.)
+            import re
+            cleaned_insight = re.sub(r'(?i)analysis:\s*', '', full_analysis).strip()
+        else:
+            # Fallback: Just grab everything that doesn't look like a header
+            cleaned_insight = " ".join([l for l in lines if "EARNINGS:" not in l.upper()]).strip()
 
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | Option Volume Rank: #{s['position']}\n"
         report += f"**{next_e}**\n"
