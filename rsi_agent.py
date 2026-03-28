@@ -4,6 +4,7 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import pandas as pd
 import yfinance as yf
 import numpy as np
+import time
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import TypedDict, List, Optional
@@ -39,6 +40,8 @@ class AgentState(TypedDict):
     # 'final_report' will hold the AI-formatted summary
     final_report: Optional[str]
     status: Optional[str]
+    # 'run_id' will act as a cache-buster
+    run_id: Optional[str]
 
 # --- 3. Precision RSI Logic ---
 def calculate_rsi_wilder(series, period=14):
@@ -128,7 +131,7 @@ def research_node(state: AgentState):
         prompt = (
             f"SYSTEM: The current date is {current_date_str}.  "
             f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find the "
-            f"LAST earnings date for {ticker} (this should be after the {current_date_str}). "
+            f"LAST earnings date for {ticker} (this should be before the {current_date_str}). "
             f"IGNORE all dates after the {current_date_str}. "
             f"NEXT UPCOMING earnings date for {ticker} (this should be after the {current_date_str}). "
             f"IGNORE all dates before the {current_date_str}. "
@@ -193,3 +196,17 @@ workflow.add_edge("researcher", "summarizer")
 workflow.add_edge("summarizer", END)
 
 graph = workflow.compile()
+
+# --- 8. Execution Block (THREAD ID STRATEGY) ---
+# This is the primary way to prevent caching
+if __name__ == "__main__":
+    # Every time you run this, a unique thread ID is created based on the time
+    unique_thread_id = f"run_{int(time.time())}"
+    config = {"configurable": {"thread_id": unique_thread_id}}
+
+    print(f"--- Running Graph with Thread ID: {unique_thread_id} ---")
+
+    # Run the graph and print results
+    result = graph.invoke({"signals": [], "run_id": unique_thread_id}, config)
+    if "final_report" in result:
+        print(result["final_report"])

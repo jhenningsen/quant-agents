@@ -110,7 +110,7 @@ def research_node(state: AgentState):
         prompt = (
             f"SYSTEM: Current date is {current_date_str}. "
             f"INSTRUCTION: You are a financial analyst. Use GOOGLE SEARCH to find: "
-            f"LAST earnings date for {ticker} (this should be after the {current_date_str}). "
+            f"LAST earnings date for {ticker} (this should be before the {current_date_str}). "
             f"IGNORE all dates after the {current_date_str}. "
             f"NEXT UPCOMING earnings date for {ticker} (this should be after the {current_date_str}). "
             f"IGNORE all dates before the {current_date_str}. "
