@@ -168,8 +168,13 @@ def summarize_node(state: AgentState):
         next_e = next((l for l in lines if "NEXT EARNINGS" in l), "📅 Next Earnings: N/A")
         last_e = next((l for l in lines if "LAST EARNINGS" in l), "⏪ Last Earnings: N/A")
 
-        # Filter out the date lines to leave only the Analysis text
-        cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l and "Analysis" not in l])
+        # Specifically grab the analysis line and remove the "Analysis:" prefix
+        analysis_line = next((l for l in lines if "Analysis:" in l), "")
+        cleaned_insight = analysis_line.replace("Analysis:", "").strip()
+
+        # If AI didn't use the "Analysis:" prefix, grab the non-date lines
+        if not cleaned_insight:
+            cleaned_insight = "\n".join([l for l in lines if "EARNINGS" not in l]).strip()
 
         report += f"### 🔍 {s['symbol']} | Price: ${s['price']} | Option Volume Rank: #{s['position']}\n"
         report += f"**{next_e}**\n"
