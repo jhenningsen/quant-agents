@@ -74,10 +74,9 @@ def rsi_scanner_node(state: AgentState):
             for length, threshold in RSI_CONFIG:
                 rsi_series = calculate_rsi_wilder(df['Close'], period=length)
                 rsi_today = float(rsi_series.iloc[-1])
-                rsi_yesterday = float(rsi_series.iloc[-2])
 
-                # TRIGGER: Momentum Ignition (Crossing ABOVE threshold)
-                if rsi_today > threshold and rsi_yesterday <= threshold:
+                # TRIGGER: Momentum Ignition
+                if rsi_today > threshold:
                     rsi_matches.append({
                         "len": length,
                         "val": round(rsi_today, 2),
